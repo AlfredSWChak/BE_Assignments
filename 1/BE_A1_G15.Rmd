@@ -1,7 +1,7 @@
 ---
 title: "BE Group Submission Assignment 1"
 subtitle: "Group 15" 
-author: "Kacper Kaznowski (2769505), Lanlan Hou (2801069) and Alfred Sou (2796840)"
+author: "Kacper Kaznowski (2803584), Lanlan Hou (2801069) and Alfred Sou (2796840)"
 output: pdf_document
 ---
 
