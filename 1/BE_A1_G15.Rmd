@@ -1,7 +1,7 @@
 ---
 title: "BE Group Submission Assignment 1"
 subtitle: "Group 15" 
-author: "Lanlan Hou (2801069), Sebastiaan van Dijen (2769505) and Alfred Sou (2796840)"
+author: "Kacper Kaznowski (2769505), Lanlan Hou (2801069) and Alfred Sou (2796840)"
 output: pdf_document
 ---
 
@@ -9,52 +9,180 @@ output: pdf_document
 
 ## a.
 ```{r echo=TRUE,fig.dim=c(6,4),fig.align='center'}
+print('Gibbs sampling in case of flat prior distribution for µ')
 sampleData <- c(1.6088,-1.4579,0.4502,1.0701,-0.3803,1.1201,0.4199,0.3998,-0.1904,0.3932)
 numberOfSimulations <- 11000
 numberOfBurnIn <- 1000
-initial_mu <- mean(sampleData)
-numberOfSample <- length(sampleData)
 
-h_list <- numeric(numberOfSimulations)
-mu_list <- numeric(numberOfSimulations)
-
-# Gibbs sampling
-for (i in 1:numberOfSimulations) {
-  a <- numberOfSample / 2
+gibbsSampling_flatPrior <- function(input_sample){
+  h_list <- numeric(numberOfSimulations)
+  mu_list <- numeric(numberOfSimulations)
   
-  if (i-1 == 0){
-    b <- 1 / (1/2 * sum(sapply(1:numberOfSample, 
-                               function(j) (sampleData[j] - initial_mu)^2)))
-  } else {
-    b <- 1 / (1/2 * sum(sapply(1:numberOfSample, 
-                               function(j) (sampleData[j] - mu_list[i-1])^2)))
+  initial_mu <- mean(input_sample)
+  numberOfSample <- length(input_sample)
+  
+  # Gibbs sampling
+  for (i in 1:numberOfSimulations) {
+    a <- numberOfSample / 2
+    
+    if (i-1 == 0){
+      b <- 1 / (1/2 * sum(sapply(1:numberOfSample, 
+                                 function(j) (input_sample[j] - initial_mu)^2)))
+    } else {
+      b <- 1 / (1/2 * sum(sapply(1:numberOfSample, 
+                                 function(j) (input_sample[j] - mu_list[i-1])^2)))
+    }
+    
+    bar_y <- mean(sampleData)
+    
+    # draw from Gamma distribution
+    h_list[i] <- rgamma(n = 1, shape = a, scale = b)
+    
+    # draw from Normal distribution
+    mu_list[i] <- rnorm(n = 1, mean = bar_y, 
+                        sd = sqrt(1/(h_list[i] * numberOfSample)))
   }
-  
-  bar_y <- mean(sampleData)
-  
-  # draw from Gamma distribution
-  h_list[i] <- rgamma(n = 1, shape = a, scale = b)
-  
-  # draw from Normal distribution
-  mu_list[i] <- rnorm(n = 1, mean = bar_y, 
-                      sd = sqrt(1/(h_list[i] * numberOfSample)))
+  return(list(h=h_list, mu=mu_list))
 }
 
+a_result <- gibbsSampling_flatPrior(sampleData)
+
 # Trace plot of µ
+library(ggplot2)
 serialNumber <- seq(from=1, to=numberOfSimulations, by=1)
-plot(serialNumber, mu_list, type='l', col='blue',
-     main='Trace plot of µ', xlab='Draw', ylab='µ')
+df <- data.frame(draw = serialNumber, mu = a_result$mu)
+
+ggplot(df, aes(x = draw, y = mu)) +
+  geom_line(color = "blue") +
+  labs(title = 'Trace plot of µ (in case of flat prior distribution for µ)',
+       x = 'Draw', y = 'µ') +
+  theme_minimal()
+ggsave('figures/a_flatPrior_tracePlot.png', width = 10, height = 6, dpi = 300)
 
 # estimate the posterior probabilities
 print('The posterior probabilities are:')
-sum_mu_greater_0 <- sum(mu_list[numberOfBurnIn:numberOfSimulations] > 0)
+sum_mu_greater_0 <- sum(a_result$mu[numberOfBurnIn:numberOfSimulations] > 0)
 print(paste('Pr(µ > 0 | y) =', sum_mu_greater_0/(numberOfSimulations-numberOfBurnIn)))
 
-sum_mu_less_0 <- sum(mu_list[numberOfBurnIn:numberOfSimulations] < 0)
+sum_mu_less_0 <- sum(a_result$mu[numberOfBurnIn:numberOfSimulations] < 0)
 print(paste('Pr(µ < 0 | y) =', sum_mu_less_0/(numberOfSimulations-numberOfBurnIn)))
 ```
 
 ## b.
 ```{r echo=TRUE,fig.dim=c(6,4),fig.align='center'}
+print('Gibbs sampling in case of normal prior distribution for µ')
+
+gibbsSampling_normalPrior <- function(input_sample, prior_mean, prior_variance){
+  h_list <- numeric(numberOfSimulations)
+  mu_list <- numeric(numberOfSimulations)
+  
+  initial_mu <- mean(input_sample)
+  numberOfSample <- length(input_sample)
+  
+  for (i in 1:numberOfSimulations) {
+    a <- numberOfSample / 2
+    
+    if (i-1 == 0){
+      b <- 1 / (1/2 * sum(sapply(1:numberOfSample, 
+                                 function(j) (input_sample[j] - initial_mu)^2)))
+    } else {
+      b <- 1 / (1/2 * sum(sapply(1:numberOfSample, 
+                                 function(j) (input_sample[j] - mu_list[i-1])^2)))
+    }
+    
+    bar_y <- mean(input_sample)
+    
+    # draw from Gamma distribution
+    h_list[i] <- rgamma(n = 1, shape = a, scale = b)
+    
+    # draw from Normal distribution
+    posterior_mean <- ((prior_mean/prior_variance) 
+                       + h_list[i]*numberOfSample*mean(input_sample)) / (1/prior_variance + h_list[i]*numberOfSample)
+    posterior_variance <- 1 / (1/prior_variance + h_list[i]*numberOfSample)
+    
+    mu_list[i] <- rnorm(n = 1, mean = posterior_mean, sd = posterior_variance)
+  }
+  return(list(h=h_list, mu=mu_list))
+}
+
+b_prior_mean <- 0
+b_prior_variance <- 100^2 
+
+b_result <- gibbsSampling_normalPrior(sampleData, b_prior_mean, b_prior_variance)
+
+# Trace plot of µ
+serialNumber <- seq(from=1, to=numberOfSimulations, by=1)
+
+df <- data.frame(draw = serialNumber, mu = b_result$mu)
+
+ggplot(df, aes(x = draw, y = mu)) +
+  geom_line(color = "blue") +
+  labs(title = 'Trace plot of µ (in case of normal prior distribution for µ where m_prior = 0, v_prior = 10000)',
+       x = 'Draw', y = 'µ') +
+  theme_minimal()
+ggsave('figures/b_normalPrior_tracePlot.png', width = 10, height = 6, dpi = 300)
+
+# estimate the posterior probabilities
+print('The posterior probabilities are:')
+sum_mu_greater_0 <- sum(b_result$mu[numberOfBurnIn:numberOfSimulations] > 0)
+print(paste('Pr(µ > 0 | y) =', sum_mu_greater_0/(numberOfSimulations-numberOfBurnIn)))
+
+sum_mu_less_0 <- sum(b_result$mu[numberOfBurnIn:numberOfSimulations] < 0)
+print(paste('Pr(µ < 0 | y) =', sum_mu_less_0/(numberOfSimulations-numberOfBurnIn)))
+```
+
+## c.
+```{r echo=TRUE,fig.dim=c(6,4),fig.align='center'}
+print('Gibbs sampling in case of normal prior distribution for µ')
+c_prior_mean <- 0.5
+c_prior_variance <- 0.25^2
+
+c_result <- gibbsSampling_normalPrior(sampleData, c_prior_mean, c_prior_variance)
+
+# Trace plot of µ
+serialNumber <- seq(from=1, to=numberOfSimulations, by=1)
+df <- data.frame(draw = serialNumber, mu = c_result$mu)
+
+ggplot(df, aes(x = draw, y = mu)) +
+  geom_line(color = "blue") +
+  labs(title = 'Trace plot of µ (in case of normal prior distribution for µ where m_prior = 0.5, v_prior = 0.0625)',
+       x = 'Draw', y = 'µ') +
+  theme_minimal()
+ggsave('figures/c_normalPrior_tracePlot.png', width = 10, height = 6, dpi = 300)
+
+# estimate the posterior probabilities
+print('The posterior probabilities are:')
+sum_mu_greater_0 <- sum(c_result$mu[numberOfBurnIn:numberOfSimulations] > 0)
+print(paste('Pr(µ > 0 | y) =', sum_mu_greater_0/(numberOfSimulations-numberOfBurnIn)))
+
+sum_mu_less_0 <- sum(c_result$mu[numberOfBurnIn:numberOfSimulations] < 0)
+print(paste('Pr(µ < 0 | y) =', sum_mu_less_0/(numberOfSimulations-numberOfBurnIn)))
+```
+
+## d.
+```{r echo=TRUE,fig.dim=c(6,4),fig.align='center'}
+
+twoSidedTest <- function(input_t) {
+  if (input_t > -2.2622 & input_t < 2.2622) {
+    print('t ∈ [-2.2622, 2.2622]: Do not reject the null.')
+  } else {
+    print('t ∉ [-2.2622, 2.2622]: Reject the null.')
+  }
+}
+
+a_t_statistic <-mean(a_result$mu) / sqrt(var(a_result$mu)/length(a_result$mu))
+print('A classical/frequentist two-sided test in (a):')
+print(paste('Test statistic:', a_t_statistic))
+twoSidedTest(a_t_statistic)
+
+b_t_statistic <- mean(b_result$mu) / sqrt(var(b_result$mu)/length(b_result$mu))
+print('A classical/frequentist two-sided test in (b):')
+print(paste('Test statistic:', b_t_statistic))
+twoSidedTest(b_t_statistic)
+
+c_t_statistic <- mean(c_result$mu) / sqrt(var(c_result$mu)/length(c_result$mu))
+print('A classical/frequentist two-sided test in (c):')
+print(paste('Test statistic:', c_t_statistic))
+twoSidedTest(c_t_statistic)
 
 ```
