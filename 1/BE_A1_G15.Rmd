@@ -74,9 +74,6 @@ print(paste('Pr(µ > 0 | y) =', sum_mu_greater_0))
 
 sum_mu_less_0 <- sum(a_result$mu[numberOfBurnIn:numberOfSimulations] < 0)/(numberOfSimulations-numberOfBurnIn)
 print(paste('Pr(µ < 0 | y) =', sum_mu_less_0))
-
-a_pValue <- twosided_pvalue(sum_mu_greater_0, sum_mu_less_0)
-print(paste('The two-sided p-value is:',a_pValue))
 ```
 
 ## b.
@@ -139,9 +136,6 @@ print(paste('Pr(µ > 0 | y) =', sum_mu_greater_0))
 
 sum_mu_less_0 <- sum(b_result$mu[numberOfBurnIn:numberOfSimulations] < 0)/(numberOfSimulations-numberOfBurnIn)
 print(paste('Pr(µ < 0 | y) =', sum_mu_less_0))
-
-b_pValue <- twosided_pvalue(sum_mu_greater_0, sum_mu_less_0)
-print(paste('The two-sided p-value is:',b_pValue))
 ```
 
 ## c.
@@ -170,25 +164,44 @@ print(paste('Pr(µ > 0 | y) =', sum_mu_greater_0))
 
 sum_mu_less_0 <- sum(c_result$mu[numberOfBurnIn:numberOfSimulations] < 0)/(numberOfSimulations-numberOfBurnIn)
 print(paste('Pr(µ < 0 | y) =', sum_mu_less_0))
-
-c_pValue <- twosided_pvalue(sum_mu_greater_0, sum_mu_less_0)
-print(paste('The two-sided p-value is:',c_pValue))
 ```
 
 ## d.
 ```{r echo=TRUE,fig.dim=c(6,4),fig.align='center'}
+y <- c(1.6088, -1.4579, 0.4502, 1.0701, -0.3803, 1.1201, 0.4199, 0.3998, -0.1904, 0.3932)
+n <- length(y)
+y_bar <- mean(y)
 
-twoSidedTest <- function(input_t) {
-  if (input_t > -2.2622 & input_t < 2.2622) {
-    print('t ∈ [-2.2622, 2.2622]: Do not reject the null.')
-  } else {
-    print('t ∉ [-2.2622, 2.2622]: Reject the null.')
-  }
+s2 <- sum((y-y_bar)^2) / (n-1)
+se <- sqrt(s2/n)
+
+t_stat <- y_bar/se
+
+p_value <- 2*(1-pt(abs(t_stat), df=n-1))
+
+cat("n =", n, "\n")
+cat("y_bar =", round(y_bar, 4), "\n")
+cat("s2 =", round(s2, 4), "SE =", round(se, 4), "\n")
+cat("t = ", round(t_stat, 4), "p-value =", round(p_value, 4), "\n")
+
+critical <- 2.2622
+if (abs(t_stat) > critical) {
+  cat("Reject H0 at 5%", critical, "\n")
+} else {
+  cat("Fail to reject H0 at 5%", critical, "\n")
 }
 
-t_statistic <- mean(sampleData) / sqrt(var(sampleData)/length(sampleData))
-print('A classical/frequentist two-sided test:')
-print(paste('Test statistic:', round(t_statistic,4)))
-print(paste('The p-value is:', round(t.test(sampleData, alternative = 'two.sided')$p.value,4)))
-twoSidedTest(t_statistic)
+summary_stats <- function(samples){
+  c(mean=mean(samples), sd=sd(samples), CI_2.5=quantile(samples, 0.025), CI_97.5=quantile(samples, 0.975), p_t0=mean(samples > 0))
+}
+
+stats_a <- summary_stats(mu_posterior_a)
+stats_b <- summary_stats(mu_posterior_b)
+stats_c <- summary_stats(mu_posterior_c)
+
+results_table <- rbind(a = stats_a, b = stats_b, c = stats_c)
+print(round(results_table, 4))
+
+cat("\nFrequentist t-test: t =", round(t_stat,4), " p =", round(p_value,4), "\n")
+```
 ```
