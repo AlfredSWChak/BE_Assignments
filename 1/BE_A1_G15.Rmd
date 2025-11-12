@@ -36,7 +36,7 @@ gibbsSampling_flatPrior <- function(input_sample){
     bar_y <- mean(sampleData)
     
     # draw from Gamma distribution
-    h_list[i] <- rgamma(n = 1, shape = a, rate = b)
+    h_list[i] <- rgamma(n = 1, shape = a, scale = b)
     
     # draw from Normal distribution
     mu_list[i] <- rnorm(n = 1, mean = bar_y, 
@@ -104,7 +104,7 @@ gibbsSampling_normalPrior <- function(input_sample, prior_mean, prior_variance){
     bar_y <- mean(input_sample)
     
     # draw from Gamma distribution
-    h_list[i] <- rgamma(n = 1, shape = a, rate = b)
+    h_list[i] <- rgamma(n = 1, shape = a, scale = b)
     
     # draw from Normal distribution
     posterior_mean <- ((prior_mean/prior_variance) 
