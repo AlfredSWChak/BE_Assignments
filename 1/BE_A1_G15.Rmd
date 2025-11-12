@@ -36,7 +36,7 @@ gibbsSampling_flatPrior <- function(input_sample){
     bar_y <- mean(sampleData)
     
     # draw from Gamma distribution
-    h_list[i] <- rgamma(n = 1, shape = a, rate = b)
+    h_list[i] <- rgamma(n = 1, shape = a, scale = b)
     
     # draw from Normal distribution
     mu_list[i] <- rnorm(n = 1, mean = bar_y, 
@@ -52,7 +52,8 @@ library(ggplot2)
 df <- data.frame(draw = seq_along(a_result$mu), mu = a_result$mu)
 
 ggplot(df, aes(x = draw, y = mu)) +
-  geom_line(color = "blue") +
+  geom_line(color = 'blue') +
+  geom_hline(yintercept = 0, color = 'black', linetype = 'dashed', linewidth = 1) +
   labs(title = 'Trace plot of µ (in case of flat prior distribution for µ)',
        x = 'Draw', y = 'µ') +
   theme_minimal()
@@ -103,7 +104,7 @@ gibbsSampling_normalPrior <- function(input_sample, prior_mean, prior_variance){
     bar_y <- mean(input_sample)
     
     # draw from Gamma distribution
-    h_list[i] <- rgamma(n = 1, shape = a, rate = b)
+    h_list[i] <- rgamma(n = 1, shape = a, scale = b)
     
     # draw from Normal distribution
     posterior_mean <- ((prior_mean/prior_variance) 
@@ -124,7 +125,8 @@ b_result <- gibbsSampling_normalPrior(sampleData, b_prior_mean, b_prior_variance
 df <- data.frame(draw = seq_along(b_result$mu), mu = b_result$mu)
 
 ggplot(df, aes(x = draw, y = mu)) +
-  geom_line(color = "blue") +
+  geom_line(color = 'blue') +
+  geom_hline(yintercept = 0, color = 'black', linetype = 'dashed', linewidth = 1) +
   labs(title = 'Trace plot of µ (in case of normal prior distribution for µ where m_prior = 0, v_prior = 10000)',
        x = 'Draw', y = 'µ') +
   theme_minimal()
@@ -154,7 +156,8 @@ c_result <- gibbsSampling_normalPrior(sampleData, c_prior_mean, c_prior_variance
 df <- data.frame(draw = seq_along(c_result$mu), mu = c_result$mu)
 
 ggplot(df, aes(x = draw, y = mu)) +
-  geom_line(color = "blue") +
+  geom_line(color = 'blue') +
+  geom_hline(yintercept = 0, color = 'black', linetype = 'dashed', linewidth = 1) +
   labs(title = 'Trace plot of µ (in case of normal prior distribution for µ where m_prior = 0.5, v_prior = 0.0625)',
        x = 'Draw', y = 'µ') +
   theme_minimal()
