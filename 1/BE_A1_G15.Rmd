@@ -59,6 +59,21 @@ ggplot(df, aes(x = draw, y = mu)) +
   theme_minimal()
 ggsave('figures/a_flatPrior_tracePlot.png', width = 10, height = 6, dpi = 300)
 
+ggplot(df, aes(x = mu)) +
+    geom_histogram(aes(y = ..density..),
+                   bins = 50, fill = 'skyblue', color = 'black') +
+    stat_function(fun = dnorm,
+                  args = list(mean = mean(df$mu), sd = sd(df$mu)),
+                  color = 'red', linewidth = 1, linetype = 'dashed') +
+    geom_vline(xintercept = 0, color = 'black', linetype = 'dashed', linewidth = 1) +
+    labs(
+      title = 'Posterior Distribution of µ (in case of flat prior distribution for µ)',
+      x = 'µ',
+      y = 'Density'
+    ) +
+    theme_minimal()
+ggsave('figures/a_flatPrior_hist.png', width = 10, height = 6, dpi = 300)
+
 twosided_pvalue <- function(p_pos, p_neg) {
   result <- 2 * min(p_pos, p_neg)
   
@@ -129,6 +144,21 @@ ggplot(df, aes(x = draw, y = mu)) +
   theme_minimal()
 ggsave('figures/b_normalPrior_tracePlot.png', width = 10, height = 6, dpi = 300)
 
+ggplot(df, aes(x = mu)) +
+    geom_histogram(aes(y = ..density..),
+                   bins = 50, fill = 'skyblue', color = 'black') +
+    stat_function(fun = dnorm,
+                  args = list(mean = mean(df$mu), sd = sd(df$mu)),
+                  color = 'red', linewidth = 1, linetype = 'dashed') +
+    geom_vline(xintercept = 0, color = 'black', linetype = 'dashed', linewidth = 1) +
+    labs(
+      title = 'Posterior Distribution of µ (in case of flat prior distribution for µ)',
+      x = 'µ',
+      y = 'Density'
+    ) +
+    theme_minimal()
+ggsave('figures/b_flatPrior_hist.png', width = 10, height = 6, dpi = 300)
+
 # estimate the posterior probabilities
 print('The posterior probabilities are:')
 sum_mu_greater_0 <- sum(b_result$mu[numberOfBurnIn:numberOfSimulations] > 0)/(numberOfSimulations-numberOfBurnIn)
@@ -156,6 +186,21 @@ ggplot(df, aes(x = draw, y = mu)) +
        x = 'Draw', y = 'µ') +
   theme_minimal()
 ggsave('figures/c_normalPrior_tracePlot.png', width = 10, height = 6, dpi = 300)
+
+ggplot(df, aes(x = mu)) +
+    geom_histogram(aes(y = ..density..),
+                   bins = 50, fill = 'skyblue', color = 'black') +
+    stat_function(fun = dnorm,
+                  args = list(mean = mean(df$mu), sd = sd(df$mu)),
+                  color = 'red', linewidth = 1, linetype = 'dashed') +
+    geom_vline(xintercept = 0, color = 'black', linetype = 'dashed', linewidth = 1) +
+    labs(
+      title = 'Posterior Distribution of µ (in case of flat prior distribution for µ)',
+      x = 'µ',
+      y = 'Density'
+    ) +
+    theme_minimal()
+ggsave('figures/c_flatPrior_hist.png', width = 10, height = 6, dpi = 300)
 
 # estimate the posterior probabilities
 print('The posterior probabilities are:')
