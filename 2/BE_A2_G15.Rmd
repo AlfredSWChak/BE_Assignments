@@ -34,10 +34,13 @@ initial_alpha <- 0.4745
 
 b_stdev <- 0.0275
 
-logLikelihood <- function(input_n, input_alpha, input_variance){
-  result <- sum(sapply(2:(input_n), function(j) 
-    (-1/2 * log(2*pi * (input_variance * (1-input_alpha) + input_alpha * input_returns[j-1]^2)) 
-    - (input_returns[j]^2 / (2 * (input_variance * (1-input_alpha) + input_alpha * input_returns[j-1]^2))))))
+logLikelihood <- function(input_alpha){
+  n <- length(input_returns)
+  s_squared <- var(input_returns)
+  
+  result <- sum(sapply(2:n, function(j) 
+    -1/2 * log(2*pi * (s_squared * (1-input_alpha) + input_alpha * input_returns[j-1]^2)) 
+    -1/2 * (input_returns[j]^2 / (s_squared * (1-input_alpha) + input_alpha * input_returns[j-1]^2))))
   
   return (result)
 }
@@ -59,9 +62,8 @@ metropolisHastings_method_norm <- function (input_stdev){
       if(i == 1){
         acceptance = 1
       } else { 
-        this_variance <- var(input_returns[1:i])
-        logLikelihood_this <- logLikelihood(i, this_alpha, this_variance)
-        logLikelihood_previous <- logLikelihood(i, alpha_list[i-1], this_variance)
+        logLikelihood_this <- logLikelihood(this_alpha)
+        logLikelihood_previous <- logLikelihood(alpha_list[i-1])
       
         acceptance = min(1, exp(logLikelihood_this - logLikelihood_previous))
       }
@@ -84,7 +86,44 @@ metropolisHastings_method_norm <- function (input_stdev){
 
 b_alpha_list <- metropolisHastings_method_norm(b_stdev)
 
-alpha_list_afterBurn <- b_alpha_list[(numberOfBurnIn+1):length(alpha_list)]
+alpha_list_afterBurn <- b_alpha_list[(numberOfBurnIn+1):length(b_alpha_list)]
+
+tracePlot <- function (input_x, input_title, input_path){
+  plot_df <- data.frame(x = seq_along(input_x), y = input_x)
+  
+  ggplot(plot_df, aes(x = x, y = y)) +
+  geom_line(color = 'blue') +
+  geom_vline(xintercept = initial_alpha, color = 'black', linetype = 'dashed', linewidth = 1) +
+  labs(title = input_title,
+       x = 'Iteration', y = 'Alpha') +
+  theme_minimal()
+ggsave(input_path, width = 10, height = 6, dpi = 300)
+}
+
+distributionPlot <- function (input_x, input_title, input_path){
+  plot_df <- data.frame(x = seq_along(input_x), y = input_x)
+  
+  ggplot(plot_df, aes(x = y)) +
+    geom_histogram(aes(y = after_stat(density), color = 'Empirical Distribution'),
+                   bins = 50, fill = 'skyblue') +
+    stat_function(fun = dnorm,
+                  args = list(mean = mean(plot_df$y), sd = sd(plot_df$y)),
+                  aes(color = 'Normal Distribution')
+                  , linewidth = 1, linetype = 'dashed') +
+    geom_vline(aes(xintercept = initial_alpha, color = "Initial α"), 
+               linetype = 'dashed', linewidth = 1) +
+    labs(title = input_title,
+       x = 'α', y = 'Density') +
+    theme_minimal() +
+    scale_color_manual(name   = 'Component',
+                       values = c('Empirical Distribution' = 'blue',
+                                  'Normal Distribution' = 'red',
+                                  'Initial α' = 'black'))
+  ggsave(input_path, width = 10, height = 6, dpi = 300)
+}
+
+tracePlot(alpha_list_afterBurn, 'Trace plot of draws α', 'figures/b_alpha_trace.png')
+distributionPlot(alpha_list_afterBurn, 'Distribution of draws α', 'figures/b_alpha_hist.png')
 
 posterior_mean <- mean(alpha_list_afterBurn)
 posterior_stdev <- sd(alpha_list_afterBurn)
@@ -99,7 +138,10 @@ c_stdev <- 0.002
 
 c_alpha_list <- metropolisHastings_method_norm(c_stdev)
 
-alpha_list_afterBurn <- c_alpha_list[(numberOfBurnIn+1):length(alpha_list)]
+alpha_list_afterBurn <- c_alpha_list[(numberOfBurnIn+1):length(c_alpha_list)]
+
+tracePlot(alpha_list_afterBurn, 'Trace plot of draws α', 'figures/c_alpha_trace.png')
+distributionPlot(alpha_list_afterBurn, 'Distribution of draws α', 'figures/c_alpha_hist.png')
 
 posterior_mean <- mean(alpha_list_afterBurn)
 posterior_stdev <- sd(alpha_list_afterBurn)
@@ -114,7 +156,10 @@ d_stdev <- 6
 
 d_alpha_list <- metropolisHastings_method_norm(d_stdev)
 
-alpha_list_afterBurn <- d_alpha_list[(numberOfBurnIn+1):length(alpha_list)]
+alpha_list_afterBurn <- d_alpha_list[(numberOfBurnIn+1):length(d_alpha_list)]
+
+tracePlot(alpha_list_afterBurn, 'Trace plot of draws α', 'figures/d_alpha_trace.png')
+distributionPlot(alpha_list_afterBurn, 'Distribution of draws α', 'figures/d_alpha_hist.png')
 
 posterior_mean <- mean(alpha_list_afterBurn)
 posterior_stdev <- sd(alpha_list_afterBurn)
