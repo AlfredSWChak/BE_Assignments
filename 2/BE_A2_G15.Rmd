@@ -1,0 +1,134 @@
+---
+title: "BE Group Submission Assignment 1"
+subtitle: "Group 15" 
+author: "Kacper Kaznowski (2803584), Lanlan Hou (2801069) and Alfred Sou (2796840)"
+output: pdf_document
+---
+
+# Question 1
+
+## a.
+```{r echo=TRUE,fig.dim=c(6,4),fig.align='center'}
+library(ggplot2)
+
+rawData <- read.csv('Assignment2Dataset.csv')
+input_returns <- rawData[[1]]
+
+df <- data.frame(date = seq_along(input_returns), returns = input_returns)
+
+ggplot(df, aes(x = date, y = returns)) +
+  geom_line(color = 'blue') +
+  geom_hline(yintercept = 0, color = 'black', linetype = 'dashed', linewidth = 1) +
+  labs(title = 'Daily returns of the S&P 500 in the six years 2018-2023',
+       x = 'Date', y = 'Daily returns') +
+  theme_minimal()
+ggsave('figures/a_returns_plot.png', width = 10, height = 6, dpi = 300)
+```
+
+## b.
+```{r echo=TRUE,fig.dim=c(6,4),fig.align='center'}
+numberOfSimulations <- 1100
+numberOfBurnIn <- 100
+
+initial_alpha <- 0.4745
+
+b_stdev <- 0.0275
+
+logLikelihood <- function(input_n, input_alpha, input_variance){
+  result <- sum(sapply(2:(input_n), function(j) 
+    (-1/2 * log(2*pi * (input_variance * (1-input_alpha) + input_alpha * input_returns[j-1]^2)) 
+    - (input_returns[j]^2 / (2 * (input_variance * (1-input_alpha) + input_alpha * input_returns[j-1]^2))))))
+  
+  return (result)
+}
+
+metropolisHastings_method_norm <- function (input_stdev){
+  alpha_list <- numeric(numberOfSimulations)
+  
+  for (i in 1:numberOfSimulations) {
+    # draw from Normal distribution
+    if(i == 1){
+      this_alpha <- rnorm(n = 1, mean = initial_alpha, sd = input_stdev)
+    } else{
+      this_alpha <- rnorm(n = 1, mean = alpha_list[i-1], sd = input_stdev)
+    }
+    
+    if (this_alpha < 0 || this_alpha > 1) {
+      acceptance = 0
+    } else {
+      if(i == 1){
+        acceptance = 1
+      } else { 
+        this_variance <- var(input_returns[1:i])
+        logLikelihood_this <- logLikelihood(i, this_alpha, this_variance)
+        logLikelihood_previous <- logLikelihood(i, alpha_list[i-1], this_variance)
+      
+        acceptance = min(1, exp(logLikelihood_this - logLikelihood_previous))
+      }
+    }
+      
+    u <- runif(1, min = 0, max = 1)
+    
+    if (u <= acceptance){
+      alpha_list[i] <- this_alpha
+    } else {
+      if(i == 1){
+        alpha_list[i] <- initial_alpha
+      } else{
+        alpha_list[i] <- alpha_list[i-1]
+      }
+    }
+  }
+  return (alpha_list)
+}
+
+b_alpha_list <- metropolisHastings_method_norm(b_stdev)
+
+alpha_list_afterBurn <- b_alpha_list[(numberOfBurnIn+1):length(alpha_list)]
+
+posterior_mean <- mean(alpha_list_afterBurn)
+posterior_stdev <- sd(alpha_list_afterBurn)
+
+posterior_mean
+posterior_stdev
+```
+
+## c.
+```{r echo=TRUE,fig.dim=c(6,4),fig.align='center'}
+c_stdev <- 0.002
+
+c_alpha_list <- metropolisHastings_method_norm(c_stdev)
+
+alpha_list_afterBurn <- c_alpha_list[(numberOfBurnIn+1):length(alpha_list)]
+
+posterior_mean <- mean(alpha_list_afterBurn)
+posterior_stdev <- sd(alpha_list_afterBurn)
+
+posterior_mean
+posterior_stdev
+```
+
+## d.
+```{r echo=TRUE,fig.dim=c(6,4),fig.align='center'}
+d_stdev <- 6
+
+d_alpha_list <- metropolisHastings_method_norm(d_stdev)
+
+alpha_list_afterBurn <- d_alpha_list[(numberOfBurnIn+1):length(alpha_list)]
+
+posterior_mean <- mean(alpha_list_afterBurn)
+posterior_stdev <- sd(alpha_list_afterBurn)
+
+posterior_mean
+posterior_stdev
+```
+
+## e.
+```{r echo=TRUE,fig.dim=c(6,4),fig.align='center'}
+
+```
+
+## f.
+```{r echo=TRUE,fig.dim=c(6,4),fig.align='center'}
+
+```
