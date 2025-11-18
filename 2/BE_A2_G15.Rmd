@@ -170,10 +170,181 @@ posterior_stdev
 
 ## e.
 ```{r echo=TRUE,fig.dim=c(6,4),fig.align='center'}
+logLikelihood_bivariate <- function(input_alpha, input_beta){
+  n <- length(input_returns)
+  s_squared <- var(input_returns)
+  variance <- numeric(n)
+  variance[1] <- s_squared * (1-input_alpha-input_beta)
+  
+  for (i in 2:n){
+    variance[i] <- s_squared * (1-input_alpha-input_beta) 
+                    + input_alpha * input_returns[i-1]^2 
+                    + input_beta * variance[i-1]
+  }
+  
+  result <- sum(sapply(2:n, function(j) 
+    -1/2 * log(2*pi * (s_squared * (1-input_alpha-input_beta) 
+                       + input_alpha * input_returns[j-1]^2 
+                       + input_beta * variance[j-1])) 
+    -1/2 * (input_returns[j]^2 / (s_squared * (1-input_alpha) 
+                                  + input_alpha * input_returns[j-1]^2
+                                  + input_beta * variance[j-1]))))
+  
+  return (result)
+}
 
+metropolisHastings_method_bivariate_norm <- function(input_initial_theta, input_var_cov_matrix){
+
+  theta <- matrix(NA, nrow = numberOfSimulations, 
+                   ncol = 2)   # columns: alpha, beta
+  theta_candidate <- matrix(NA, nrow = numberOfSimulations, ncol = 2)
+  
+  theta[1, ] <- input_initial_theta
+  theta_candidate[1, ] <- input_initial_theta
+  
+  acceptanceRate <- numeric(numberOfSimulations)
+  
+  for (i in 2:numberOfSimulations) {
+    # draw candidate from bivariate normal candidate distribution
+    theta_hat <- MASS::mvrnorm(1, mu = theta[i-1, ], 
+                               Sigma = input_var_cov_matrix)
+    
+    this_alpha <- theta_hat[1]
+    this_beta <- theta_hat[2]
+    
+    last_alpha <- theta[i-1,][1]
+    last_beta <- theta[i-1,][2]
+  
+    if (this_alpha < 0 || this_beta < 0 || this_alpha + this_beta >= 1) {
+      acceptance <- 0
+    } else {
+      loglikelihood_posterior_hat <- logLikelihood_bivariate(this_alpha, this_beta)
+      loglikelihood_posterior_previous <- logLikelihood_bivariate(last_alpha, last_beta)
+      
+      acceptance <- min(1, exp(loglikelihood_posterior_hat 
+                        - loglikelihood_posterior_previous))
+    }
+  
+    u <- runif(1, min = 0, max = 1)
+      
+    if (u <= acceptance){
+      theta[i,] <- theta_hat
+      acceptanceRate[i] <- 1
+    } else {
+      theta[i,] <- theta[i-1,]
+      acceptanceRate[i] <- 0
+    }
+    
+    theta_candidate[i,] <- theta_hat
+  }
+  print(acceptanceRate)
+  
+  acceptancePercentage <- mean(acceptanceRate[(numberOfBurnIn+1):numberOfSimulations]) * 100
+  
+  return (list(theta=theta, candidate=theta_candidate,
+               rate=acceptancePercentage))
+}
+
+initial_theta <- c(0.1817,0.7899)
+var_cov_matrix <- matrix(c(0.000430, -0.000510,
+                             -0.000510, 0.000626), nrow = 2, byrow = TRUE)
+
+posterior <- metropolisHastings_method_bivariate_norm(initial_theta, var_cov_matrix)
+
+# posterior estimations
+theta_posterior <- posterior$theta[(numberOfBurnIn+1):numberOfSimulations, ]
+alpha_posterior <- theta_posterior[, 1]
+beta_posterior  <- theta_posterior[, 2]
+
+informationTable <- function(input_alpha, input_beta){
+  alpha_mean <- mean(input_alpha)
+  alpha_stdev <- sd(input_alpha)
+  
+  beta_mean <- mean(input_beta)
+  beta_stdev <- sd(input_beta)
+  
+  alpha_corr <- acf(input_alpha, lag.max = 1, plot = FALSE)$acf[2]
+  beta_corr <- acf(input_beta, lag.max = 1, plot = FALSE)$acf[2]
+  
+  alpha_beta_df <- data.frame(Parameters = c('α','β'),
+                              PosteriorMean = c(alpha_mean, beta_mean),
+                              PosteriorStdev = c(alpha_stdev, beta_stdev),
+                              serialCorrelation = c(alpha_corr,beta_corr))
+  return(alpha_beta_df)
+}
+
+print(paste('Acceptance percentage: ',posterior$rate,'%'))
+accepted_df <- informationTable(alpha_posterior, beta_posterior)
+accepted_df
+
+draw_scatterPlot <- function(input_x, input_y, input_title, input_path){
+  scatter_df <- data.frame(x = input_x, y = input_y)
+  
+  ggplot(scatter_df, aes(x = x, y = y)) +
+  geom_point(color = 'blue') +
+  labs(title = input_title,
+       x = 'α', y = 'Density') +
+  theme_minimal()
+  ggsave(input_path, width = 10, height = 6, dpi = 300)
+}
+
+# scatter plot of (accepted and repeated) draws of α and β
+draw_scatterPlot(input_x = alpha_posterior,
+                 input_y = beta_posterior,
+                 input_title = 'Scatter plot of draws of α and β',
+                 input_path = 'figures/e_accepted_scatter.png')
+
+theta_candidate_posterior <- posterior$candidate[(numberOfBurnIn+1):numberOfSimulations, ]
+alpha_candidate_posterior <- theta_candidate_posterior[, 1]
+beta_candidate_posterior  <- theta_candidate_posterior[, 2]
+
+candidate_df <- informationTable(alpha_candidate_posterior,
+                                 beta_candidate_posterior)
+candidate_df
+
+# scatter plot of candidate draws of α and β
+draw_scatterPlot(input_x = alpha_candidate_posterior,
+                 input_y = beta_candidate_posterior,
+                 input_title = 'Scatter plot of candidate draws of α and β',
+                 input_path = 'figures/e_candidate_scatter.png')
 ```
 
 ## f.
 ```{r echo=TRUE,fig.dim=c(6,4),fig.align='center'}
+initial_theta <- c(0.1817,0.7899)
+var_cov_matrix <- matrix(c(0.000430, 0,
+                           0, 0.000626), nrow = 2, byrow = TRUE)
+
+posterior <- metropolisHastings_method_bivariate_norm(initial_theta, var_cov_matrix)
+
+# posterior estimations
+theta_posterior <- posterior$theta[(numberOfBurnIn+1):numberOfSimulations, ]
+alpha_posterior <- theta_posterior[, 1]
+beta_posterior  <- theta_posterior[, 2]
+
+
+posterior$rate
+accepted_df <- informationTable(alpha_posterior, beta_posterior)
+accepted_df
+
+# scatter plot of (accepted and repeated) draws of α and β
+draw_scatterPlot(input_x = alpha_posterior,
+                 input_y = beta_posterior,
+                 input_title = 'Scatter plot of draws of α and β',
+                 input_path = 'figures/f_accepted_scatter.png')
+
+theta_candidate_posterior <- posterior$candidate[(numberOfBurnIn+1):numberOfSimulations, ]
+alpha_candidate_posterior <- theta_candidate_posterior[, 1]
+beta_candidate_posterior  <- theta_candidate_posterior[, 2]
+
+candidate_df <- informationTable(alpha_candidate_posterior,
+                                 beta_candidate_posterior)
+candidate_df
+
+# scatter plot of candidate draws of α and β
+draw_scatterPlot(input_x = alpha_candidate_posterior,
+                 input_y = beta_candidate_posterior,
+                 input_title = 'Scatter plot of candidate draws of α and β',
+                 input_path = 'figures/f_candidate_scatter.png')
 
 ```
