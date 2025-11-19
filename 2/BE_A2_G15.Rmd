@@ -47,6 +47,7 @@ logLikelihood <- function(input_alpha){
 
 metropolisHastings_method_norm <- function (input_stdev){
   alpha_list <- numeric(numberOfSimulations)
+  acceptanceRate <- numeric(numberOfSimulations)
   
   for (i in 1:numberOfSimulations) {
     # draw from Normal distribution
@@ -73,20 +74,41 @@ metropolisHastings_method_norm <- function (input_stdev){
     
     if (u <= acceptance){
       alpha_list[i] <- this_alpha
+      acceptanceRate[i] <- 1
     } else {
       if(i == 1){
         alpha_list[i] <- initial_alpha
       } else{
         alpha_list[i] <- alpha_list[i-1]
       }
+      acceptanceRate[i] <- 0
     }
   }
-  return (alpha_list)
+  acceptancePercentage <- mean(acceptanceRate[(numberOfBurnIn+1):numberOfSimulations]) * 100
+  
+  return (list(alpha=alpha_list, rate=acceptancePercentage))
 }
 
-b_alpha_list <- metropolisHastings_method_norm(b_stdev)
+b_result <- metropolisHastings_method_norm(b_stdev)
 
-alpha_list_afterBurn <- b_alpha_list[(numberOfBurnIn+1):length(b_alpha_list)]
+alpha_list_afterBurn <- b_result$alpha[(numberOfBurnIn+1):length(b_result$alpha)]
+
+informationTable <- function(input_alpha){
+  alpha_mean <- mean(input_alpha)
+  alpha_stdev <- sd(input_alpha)
+  
+  alpha_corr <- acf(input_alpha, lag.max = 1, plot = FALSE)$acf[2]
+  
+  alpha_df <- data.frame(Parameters = c('α'),
+                              PosteriorMean = c(alpha_mean),
+                              PosteriorStdev = c(alpha_stdev),
+                              serialCorrelation = c(alpha_corr))
+  return(alpha_df)
+}
+
+print(paste('Acceptance percentage: ',b_result$rate,'%'))
+accepted_df <- informationTable(b_result$alpha)
+accepted_df
 
 tracePlot <- function (input_x, input_title, input_path){
   plot_df <- data.frame(x = seq_along(input_x), y = input_x)
@@ -97,7 +119,7 @@ tracePlot <- function (input_x, input_title, input_path){
   labs(title = input_title,
        x = 'Iteration', y = 'Alpha') +
   theme_minimal()
-ggsave(input_path, width = 10, height = 6, dpi = 300)
+ggsave(input_path, width = 10, height = 5, dpi = 300)
 }
 
 distributionPlot <- function (input_x, input_title, input_path){
@@ -119,53 +141,43 @@ distributionPlot <- function (input_x, input_title, input_path){
                        values = c('Empirical Distribution' = 'blue',
                                   'Normal Distribution' = 'red',
                                   'Initial α' = 'black'))
-  ggsave(input_path, width = 10, height = 6, dpi = 300)
+  ggsave(input_path, width = 10, height = 5, dpi = 300)
 }
 
 tracePlot(alpha_list_afterBurn, 'Trace plot of draws α', 'figures/b_alpha_trace.png')
 distributionPlot(alpha_list_afterBurn, 'Distribution of draws α', 'figures/b_alpha_hist.png')
-
-posterior_mean <- mean(alpha_list_afterBurn)
-posterior_stdev <- sd(alpha_list_afterBurn)
-
-posterior_mean
-posterior_stdev
 ```
 
 ## c.
 ```{r echo=TRUE,fig.dim=c(6,4),fig.align='center'}
 c_stdev <- 0.002
 
-c_alpha_list <- metropolisHastings_method_norm(c_stdev)
+c_result <- metropolisHastings_method_norm(c_stdev)
 
-alpha_list_afterBurn <- c_alpha_list[(numberOfBurnIn+1):length(c_alpha_list)]
+print(paste('Acceptance percentage: ',c_result$rate,'%'))
+accepted_df <- informationTable(c_result$alpha)
+accepted_df
+
+alpha_list_afterBurn <- c_result$alpha[(numberOfBurnIn+1):length(c_result$alpha)]
 
 tracePlot(alpha_list_afterBurn, 'Trace plot of draws α', 'figures/c_alpha_trace.png')
 distributionPlot(alpha_list_afterBurn, 'Distribution of draws α', 'figures/c_alpha_hist.png')
-
-posterior_mean <- mean(alpha_list_afterBurn)
-posterior_stdev <- sd(alpha_list_afterBurn)
-
-posterior_mean
-posterior_stdev
 ```
 
 ## d.
 ```{r echo=TRUE,fig.dim=c(6,4),fig.align='center'}
 d_stdev <- 6
 
-d_alpha_list <- metropolisHastings_method_norm(d_stdev)
+d_result <- metropolisHastings_method_norm(d_stdev)
 
-alpha_list_afterBurn <- d_alpha_list[(numberOfBurnIn+1):length(d_alpha_list)]
+print(paste('Acceptance percentage: ',d_result$rate,'%'))
+accepted_df <- informationTable(d_result$alpha)
+accepted_df
+
+alpha_list_afterBurn <- d_result$alpha[(numberOfBurnIn+1):length(d_result$alpha)]
 
 tracePlot(alpha_list_afterBurn, 'Trace plot of draws α', 'figures/d_alpha_trace.png')
 distributionPlot(alpha_list_afterBurn, 'Distribution of draws α', 'figures/d_alpha_hist.png')
-
-posterior_mean <- mean(alpha_list_afterBurn)
-posterior_stdev <- sd(alpha_list_afterBurn)
-
-posterior_mean
-posterior_stdev
 ```
 
 ## e.
@@ -186,7 +198,7 @@ logLikelihood_bivariate <- function(input_alpha, input_beta){
     -1/2 * log(2*pi * (s_squared * (1-input_alpha-input_beta) 
                        + input_alpha * input_returns[j-1]^2 
                        + input_beta * variance[j-1])) 
-    -1/2 * (input_returns[j]^2 / (s_squared * (1-input_alpha) 
+    -1/2 * (input_returns[j]^2 / (s_squared * (1-input_alpha-input_beta) 
                                   + input_alpha * input_returns[j-1]^2
                                   + input_beta * variance[j-1]))))
   
@@ -237,7 +249,6 @@ metropolisHastings_method_bivariate_norm <- function(input_initial_theta, input_
     
     theta_candidate[i,] <- theta_hat
   }
-  print(acceptanceRate)
   
   acceptancePercentage <- mean(acceptanceRate[(numberOfBurnIn+1):numberOfSimulations]) * 100
   
@@ -256,7 +267,7 @@ theta_posterior <- posterior$theta[(numberOfBurnIn+1):numberOfSimulations, ]
 alpha_posterior <- theta_posterior[, 1]
 beta_posterior  <- theta_posterior[, 2]
 
-informationTable <- function(input_alpha, input_beta){
+informationTable_bivariate <- function(input_alpha, input_beta){
   alpha_mean <- mean(input_alpha)
   alpha_stdev <- sd(input_alpha)
   
@@ -274,7 +285,7 @@ informationTable <- function(input_alpha, input_beta){
 }
 
 print(paste('Acceptance percentage: ',posterior$rate,'%'))
-accepted_df <- informationTable(alpha_posterior, beta_posterior)
+accepted_df <- informationTable_bivariate(alpha_posterior, beta_posterior)
 accepted_df
 
 draw_scatterPlot <- function(input_x, input_y, input_title, input_path){
@@ -285,8 +296,11 @@ draw_scatterPlot <- function(input_x, input_y, input_title, input_path){
   labs(title = input_title,
        x = 'α', y = 'Density') +
   theme_minimal()
-  ggsave(input_path, width = 10, height = 6, dpi = 300)
+  ggsave(input_path, width = 6, height = 6, dpi = 300)
 }
+
+tracePlot(alpha_posterior,'Trace plot of draws α','figures/e_alpha_trace.png')
+tracePlot(beta_posterior,'Trace plot of draws β','figures/e_beta_trace.png')
 
 # scatter plot of (accepted and repeated) draws of α and β
 draw_scatterPlot(input_x = alpha_posterior,
@@ -298,8 +312,8 @@ theta_candidate_posterior <- posterior$candidate[(numberOfBurnIn+1):numberOfSimu
 alpha_candidate_posterior <- theta_candidate_posterior[, 1]
 beta_candidate_posterior  <- theta_candidate_posterior[, 2]
 
-candidate_df <- informationTable(alpha_candidate_posterior,
-                                 beta_candidate_posterior)
+candidate_df <- informationTable_bivariate(alpha_candidate_posterior,
+                                           beta_candidate_posterior)
 candidate_df
 
 # scatter plot of candidate draws of α and β
@@ -322,10 +336,12 @@ theta_posterior <- posterior$theta[(numberOfBurnIn+1):numberOfSimulations, ]
 alpha_posterior <- theta_posterior[, 1]
 beta_posterior  <- theta_posterior[, 2]
 
-
-posterior$rate
-accepted_df <- informationTable(alpha_posterior, beta_posterior)
+print(paste('Acceptance percentage: ',posterior$rate,'%'))
+accepted_df <- informationTable_bivariate(alpha_posterior, beta_posterior)
 accepted_df
+
+tracePlot(alpha_posterior,'Trace plot of draws α','figures/f_alpha_trace.png')
+tracePlot(beta_posterior,'Trace plot of draws β','figures/f_beta_trace.png')
 
 # scatter plot of (accepted and repeated) draws of α and β
 draw_scatterPlot(input_x = alpha_posterior,
@@ -337,8 +353,8 @@ theta_candidate_posterior <- posterior$candidate[(numberOfBurnIn+1):numberOfSimu
 alpha_candidate_posterior <- theta_candidate_posterior[, 1]
 beta_candidate_posterior  <- theta_candidate_posterior[, 2]
 
-candidate_df <- informationTable(alpha_candidate_posterior,
-                                 beta_candidate_posterior)
+candidate_df <- informationTable_bivariate(alpha_candidate_posterior,
+                                           beta_candidate_posterior)
 candidate_df
 
 # scatter plot of candidate draws of α and β
