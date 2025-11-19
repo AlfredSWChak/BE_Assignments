@@ -9,6 +9,7 @@ output: pdf_document
 
 ## a.
 ```{r echo=TRUE,fig.dim=c(6,4),fig.align='center'}
+library(MASS)
 library(ggplot2)
 
 rawData <- read.csv('Assignment2Dataset.csv')
@@ -186,7 +187,7 @@ logLikelihood_bivariate <- function(input_alpha, input_beta){
   n <- length(input_returns)
   s_squared <- var(input_returns)
   variance <- numeric(n)
-  variance[1] <- s_squared * (1-input_alpha-input_beta)
+  variance[1] <- s_squared
   
   for (i in 2:n){
     variance[i] <- s_squared * (1-input_alpha-input_beta) 
@@ -194,21 +195,15 @@ logLikelihood_bivariate <- function(input_alpha, input_beta){
                     + input_beta * variance[i-1]
   }
   
-  result <- sum(sapply(2:n, function(j) 
-    -1/2 * log(2*pi * (s_squared * (1-input_alpha-input_beta) 
-                       + input_alpha * input_returns[j-1]^2 
-                       + input_beta * variance[j-1])) 
-    -1/2 * (input_returns[j]^2 / (s_squared * (1-input_alpha-input_beta) 
-                                  + input_alpha * input_returns[j-1]^2
-                                  + input_beta * variance[j-1]))))
+  result <- sum(sapply(2:n, function(j) (-0.5 * log(variance[j]) 
+                       -0.5 * (input_returns[j]^2 / variance[j]))))
   
   return (result)
 }
 
 metropolisHastings_method_bivariate_norm <- function(input_initial_theta, input_var_cov_matrix){
 
-  theta <- matrix(NA, nrow = numberOfSimulations, 
-                   ncol = 2)   # columns: alpha, beta
+  theta <- matrix(NA, nrow = numberOfSimulations, ncol = 2)
   theta_candidate <- matrix(NA, nrow = numberOfSimulations, ncol = 2)
   
   theta[1, ] <- input_initial_theta
@@ -218,14 +213,14 @@ metropolisHastings_method_bivariate_norm <- function(input_initial_theta, input_
   
   for (i in 2:numberOfSimulations) {
     # draw candidate from bivariate normal candidate distribution
-    theta_hat <- MASS::mvrnorm(1, mu = theta[i-1, ], 
-                               Sigma = input_var_cov_matrix)
+    theta_hat <- mvrnorm(1, mu = theta[(i-1), ], 
+                         Sigma = input_var_cov_matrix)
     
     this_alpha <- theta_hat[1]
     this_beta <- theta_hat[2]
     
-    last_alpha <- theta[i-1,][1]
-    last_beta <- theta[i-1,][2]
+    last_alpha <- theta[(i-1),1]
+    last_beta <- theta[(i-1),2]
   
     if (this_alpha < 0 || this_beta < 0 || this_alpha + this_beta >= 1) {
       acceptance <- 0
@@ -243,7 +238,7 @@ metropolisHastings_method_bivariate_norm <- function(input_initial_theta, input_
       theta[i,] <- theta_hat
       acceptanceRate[i] <- 1
     } else {
-      theta[i,] <- theta[i-1,]
+      theta[i,] <- theta[(i-1),]
       acceptanceRate[i] <- 0
     }
     
@@ -252,13 +247,14 @@ metropolisHastings_method_bivariate_norm <- function(input_initial_theta, input_
   
   acceptancePercentage <- mean(acceptanceRate[(numberOfBurnIn+1):numberOfSimulations]) * 100
   
-  return (list(theta=theta, candidate=theta_candidate,
+  return (list(theta=theta, 
+               candidate=theta_candidate,
                rate=acceptancePercentage))
 }
 
 initial_theta <- c(0.1817,0.7899)
 var_cov_matrix <- matrix(c(0.000430, -0.000510,
-                             -0.000510, 0.000626), nrow = 2, byrow = TRUE)
+                           -0.000510, 0.000626), nrow = 2, byrow = TRUE)
 
 posterior <- metropolisHastings_method_bivariate_norm(initial_theta, var_cov_matrix)
 
