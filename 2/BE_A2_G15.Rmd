@@ -190,13 +190,15 @@ logLikelihood_bivariate <- function(input_alpha, input_beta){
   variance[1] <- s_squared
   
   for (i in 2:n){
-    variance[i] <- s_squared * (1-input_alpha-input_beta) 
-                    + input_alpha * input_returns[i-1]^2 
-                    + input_beta * variance[i-1]
+    variance[i] <- s_squared * (1-input_alpha-input_beta) + 
+                   input_alpha * (input_returns[i-1]^2) + 
+                   input_beta * variance[i-1]
   }
   
-  result <- sum(sapply(2:n, function(j) (-0.5 * log(variance[j]) 
-                       -0.5 * (input_returns[j]^2 / variance[j]))))
+  result <- sum(sapply(2:n, function(j) 
+                      (-0.5 * log(variance[j]) - 
+                        0.5 * (input_returns[j]^2 / variance[j]))
+                      ))
   
   return (result)
 }
