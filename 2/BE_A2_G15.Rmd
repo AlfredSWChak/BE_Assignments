@@ -119,7 +119,7 @@ tracePlot <- function (input_x, input_title, input_path){
   labs(title = input_title,
        x = 'Iteration', y = 'Alpha') +
   theme_minimal()
-ggsave(input_path, width = 10, height = 6, dpi = 300)
+ggsave(input_path, width = 10, height = 5, dpi = 300)
 }
 
 distributionPlot <- function (input_x, input_title, input_path){
@@ -141,7 +141,7 @@ distributionPlot <- function (input_x, input_title, input_path){
                        values = c('Empirical Distribution' = 'blue',
                                   'Normal Distribution' = 'red',
                                   'Initial α' = 'black'))
-  ggsave(input_path, width = 10, height = 6, dpi = 300)
+  ggsave(input_path, width = 10, height = 5, dpi = 300)
 }
 
 tracePlot(alpha_list_afterBurn, 'Trace plot of draws α', 'figures/b_alpha_trace.png')
@@ -296,7 +296,7 @@ draw_scatterPlot <- function(input_x, input_y, input_title, input_path){
   labs(title = input_title,
        x = 'α', y = 'Density') +
   theme_minimal()
-  ggsave(input_path, width = 10, height = 6, dpi = 300)
+  ggsave(input_path, width = 6, height = 6, dpi = 300)
 }
 
 tracePlot(alpha_posterior,'Trace plot of draws α','figures/e_alpha_trace.png')
