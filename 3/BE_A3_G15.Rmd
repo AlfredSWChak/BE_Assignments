@@ -1,0 +1,184 @@
+---
+title: "BE Group Submission Assignment 1"
+subtitle: "Group 15" 
+author: "Kacper Kaznowski (2803584), Lanlan Hou (2801069) and Alfred Sou (2796840)"
+output: pdf_document
+---
+
+# Question 1
+
+## a.
+```{r echo=TRUE,fig.dim=c(6,4),fig.align='center'}
+# Load required packages
+library(openxlsx)   # Excel file handling
+library(ggplot2)    # Data visualization
+
+raw <- read.xlsx('Assignment3Dataset.xlsx', colNames = FALSE)[[1]]
+dof <- 7
+
+distributionPlot <- function (input_x, input_title, input_path){
+  plot_df <- data.frame(x = seq_along(input_x), y = input_x)
+  
+  ggplot(plot_df, aes(x = y)) +
+    geom_histogram(aes(y = after_stat(density), 
+                       color = 'Empirical Distribution'),
+                   bins = 50, fill = 'skyblue') +
+    stat_function(fun = dt,
+                  args = list(df=dof),
+                  aes(color = 'Student-t Distribution')
+                  , linewidth = 1, linetype = 'dashed') +
+    labs(title = input_title,
+       x = 'α', y = 'Density') +
+    theme_minimal() +
+    scale_color_manual(name   = 'Component',
+                       values = c('Empirical Distribution' = 'blue',
+                                  'Student-t Distribution' = 'red'))
+  ggsave(input_path, width = 10, height = 5, dpi = 300)
+}
+
+distributionPlot(raw, 'Distribution of dataset from Student-t with DoF = 7', 'figures/a_hist.png')
+```
+
+## b.
+```{r echo=TRUE,fig.dim=c(6,4),fig.align='center'}
+numberOfSimulations <- 10000
+
+likelihood_studentt <- function(input_dof, input_y){
+  sampleMean <- mean(input_y)
+  sampleVariance <- var(input_y)
+  n <- length(input_y)
+  
+  if(input_dof > 342) {
+    firstPart <- (exp(lgamma((input_dof+1)/2) - lgamma((input_dof)/2)) / sqrt((input_dof-2) * pi))^n
+  } else {
+    firstPart <- (gamma((input_dof+1)/2) /
+                    (gamma((input_dof)/2)*sqrt((input_dof-2) * pi)))^n
+  }
+  secondPart <- 1 / ((sampleVariance)^(n/2))
+  thirdPart <- prod(sapply(1:n, function(j) {
+    (1+((input_y[j] - sampleMean)^2 / 
+          (input_dof-2)*sampleVariance))^(-(input_dof+1)/2)
+    }))
+  
+  result <- firstPart * secondPart * thirdPart
+  
+  return(result)
+}
+
+likelihood_GED <- function(input_beta, input_y){
+  sampleMean <- mean(input_y)
+  sampleVariance <- var(input_y)
+  n <- length(input_y)
+  
+  firstPart <- ((input_beta * (gamma(3/input_beta))^(1/2)) / 
+                  (2 * sqrt(sampleVariance) * (gamma(1/input_beta)^(3/2))))^n
+  secondPart <- exp(-sum(sapply(1:n, function(j) {
+    ((abs(input_y[j] - sampleMean)) / (sqrt(sampleVariance) * sqrt(gamma(1/input_beta)/gamma(3/input_beta))))^input_beta
+    })))
+  
+  result <- firstPart * secondPart
+  
+  return(result)
+}
+
+importanceSampling <- function (input_model, input_lowerBound, input_upperBound){
+  dof <- numeric(numberOfSimulations)
+  likelihood <- numeric(numberOfSimulations)
+  
+  for (i in 1:numberOfSimulations) {
+    u <- runif(1, min = 0, max = 1)
+    this_draw <- input_lowerBound + u*(input_upperBound-input_lowerBound)
+    
+    if(input_model == 'Student-t'){
+      likelihood[i] <- likelihood_studentt(this_draw, raw)
+    }else if(input_model == 'GED'){
+      likelihood[i] <- likelihood_GED(this_draw, raw)
+    }
+  }
+  
+  marginalLikelihood <- mean(likelihood)
+  
+  return (marginalLikelihood)
+}
+
+marginalLikelihood_studentt <- importanceSampling(
+                                  input_model = 'Student-t',
+                                  input_lowerBound = 4.1,
+                                  input_upperBound = 50)
+marginalLikelihood_GED <- importanceSampling(
+                                  input_model = 'GED',
+                                  input_lowerBound = 0.38,
+                                  input_upperBound = 1.88)
+
+compute_modelProbabilities <- function(input_mL_studentt, input_mL_GED){
+  bayesFactor <- input_mL_studentt / input_mL_GED
+
+  posteriorOddsRatio <- bayesFactor
+
+  posteriorProbability_studentt <- (input_mL_studentt) / (input_mL_studentt+input_mL_GED)
+
+  posteriorProbability_GED <- (input_mL_GED) / (input_mL_studentt+input_mL_GED)
+
+  return(list(bayesFactor = bayesFactor,
+              posteriorOddsRatio = posteriorOddsRatio,
+              posteriorProbability_studentt = posteriorProbability_studentt,
+              posteriorProbability_GED = posteriorProbability_GED))
+}
+
+b_result <- compute_modelProbabilities(marginalLikelihood_studentt, marginalLikelihood_GED)
+
+print(paste('marginalLikelihood_studentt:',marginalLikelihood_studentt))
+print(paste('marginalLikelihood_GED:',marginalLikelihood_GED))
+print(paste('bayesFactor:',b_result$bayesFactor))
+print(paste('posteriorOddsRatio:',b_result$posteriorOddsRatio))
+print(paste('posteriorProbability_studentt:',b_result$posteriorProbability_studentt))
+print(paste('posteriorProbability_GED:',b_result$posteriorProbability_GED))
+```
+
+## c.
+```{r echo=TRUE,fig.dim=c(6,4),fig.align='center'}
+# Kurtosis of GED with shape parameter beta
+GED_kurtosis <- function(beta) {
+  num <- gamma(5 / beta) * gamma(1 / beta)
+  den <- gamma(3 / beta)^2
+  num / den  # this is the *raw* kurtosis (not excess)
+}
+
+# Map Student-t degrees of freedom -> equivalent GED beta
+beta_from_df <- function(input_dof, interval = c(0.2, 5)) {
+  # Target kurtosis of Student-t
+  target_K <- 3 + 6 / (input_dof - 4)
+  
+  # Root function: difference between GED and Student-t kurtosis
+  f <- function(beta) GED_kurtosis(beta) - target_K
+  
+  # Solve f(beta) = 0 on the chosen interval
+  uniroot(f, interval = interval)$root
+}
+
+new_upperBound_GED <- beta_from_df(1000)
+
+marginalLikelihood_studentt <- importanceSampling(
+                                  input_model = 'Student-t',
+                                  input_lowerBound = 4.1,
+                                  input_upperBound = 1000)
+marginalLikelihood_GED <- importanceSampling(
+                                  input_model = 'GED',
+                                  input_lowerBound = 0.38,
+                                  input_upperBound = new_upperBound_GED)
+
+c_result <- compute_modelProbabilities(marginalLikelihood_studentt, marginalLikelihood_GED)
+
+print(paste('marginalLikelihood_studentt:',marginalLikelihood_studentt))
+print(paste('marginalLikelihood_GED:',marginalLikelihood_GED))
+print(paste('bayesFactor:',c_result$bayesFactor))
+print(paste('posteriorOddsRatio:',c_result$posteriorOddsRatio))
+print(paste('posteriorProbability_studentt:',c_result$posteriorProbability_studentt))
+print(paste('posteriorProbability_GED:',c_result$posteriorProbability_GED))
+
+```
+
+## d.
+```{r echo=TRUE,fig.dim=c(6,4),fig.align='center'}
+
+```
