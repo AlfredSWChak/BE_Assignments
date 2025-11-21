@@ -101,11 +101,11 @@ importanceSampling <- function (input_model, input_lowerBound, input_upperBound)
   return (marginalLikelihood)
 }
 
-marginalLikelihood_studentt <- importanceSampling(
+b_marginalLikelihood_studentt <- importanceSampling(
                                   input_model = 'Student-t',
                                   input_lowerBound = 4.1,
                                   input_upperBound = 50)
-marginalLikelihood_GED <- importanceSampling(
+b_marginalLikelihood_GED <- importanceSampling(
                                   input_model = 'GED',
                                   input_lowerBound = 0.38,
                                   input_upperBound = 1.88)
@@ -125,10 +125,10 @@ compute_modelProbabilities <- function(input_mL_studentt, input_mL_GED){
               posteriorProbability_GED = posteriorProbability_GED))
 }
 
-b_result <- compute_modelProbabilities(marginalLikelihood_studentt, marginalLikelihood_GED)
+b_result <- compute_modelProbabilities(b_marginalLikelihood_studentt, b_marginalLikelihood_GED)
 
-print(paste('marginalLikelihood_studentt:',marginalLikelihood_studentt))
-print(paste('marginalLikelihood_GED:',marginalLikelihood_GED))
+print(paste('marginalLikelihood_studentt:',b_marginalLikelihood_studentt))
+print(paste('marginalLikelihood_GED:',b_marginalLikelihood_GED))
 print(paste('bayesFactor:',b_result$bayesFactor))
 print(paste('posteriorOddsRatio:',b_result$posteriorOddsRatio))
 print(paste('posteriorProbability_studentt:',b_result$posteriorProbability_studentt))
@@ -158,19 +158,19 @@ beta_from_df <- function(input_dof, interval = c(0.2, 5)) {
 
 new_upperBound_GED <- beta_from_df(1000)
 
-marginalLikelihood_studentt <- importanceSampling(
+c_marginalLikelihood_studentt <- importanceSampling(
                                   input_model = 'Student-t',
                                   input_lowerBound = 4.1,
                                   input_upperBound = 1000)
-marginalLikelihood_GED <- importanceSampling(
+c_marginalLikelihood_GED <- importanceSampling(
                                   input_model = 'GED',
                                   input_lowerBound = 0.38,
                                   input_upperBound = new_upperBound_GED)
 
-c_result <- compute_modelProbabilities(marginalLikelihood_studentt, marginalLikelihood_GED)
+c_result <- compute_modelProbabilities(c_marginalLikelihood_studentt, c_marginalLikelihood_GED)
 
-print(paste('marginalLikelihood_studentt:',marginalLikelihood_studentt))
-print(paste('marginalLikelihood_GED:',marginalLikelihood_GED))
+print(paste('marginalLikelihood_studentt:',c_marginalLikelihood_studentt))
+print(paste('marginalLikelihood_GED:',c_marginalLikelihood_GED))
 print(paste('bayesFactor:',c_result$bayesFactor))
 print(paste('posteriorOddsRatio:',c_result$posteriorOddsRatio))
 print(paste('posteriorProbability_studentt:',c_result$posteriorProbability_studentt))
@@ -180,5 +180,22 @@ print(paste('posteriorProbability_GED:',c_result$posteriorProbability_GED))
 
 ## d.
 ```{r echo=TRUE,fig.dim=c(6,4),fig.align='center'}
+print(paste('marginalLikelihood_studentt:',b_marginalLikelihood_studentt))
+print(paste('marginalLikelihood_GED:',b_marginalLikelihood_GED))
 
+
+priorProbability_studentt <- 0.1
+priorProbability_GED <- 0.9
+priorOddsRatio <- priorProbability_studentt/priorProbability_GED
+d_bayesFactor <- b_marginalLikelihood_studentt / b_marginalLikelihood_GED
+d_posteriorOddsRatio <- priorOddsRatio * d_bayesFactor
+sum_probability <- priorProbability_studentt * b_marginalLikelihood_studentt + priorProbability_GED * b_marginalLikelihood_GED
+d_posteriorProbability_studentt <- b_marginalLikelihood_studentt * priorProbability_studentt / sum_probability
+d_posteriorProbability_GED <- b_marginalLikelihood_GED * priorProbability_GED / sum_probability
+
+
+print(paste('bayesFactor:',d_bayesFactor))
+print(paste('posteriorOddsRatio:',d_posteriorOddsRatio))
+print(paste('posteriorProbability_studentt:',d_posteriorProbability_studentt))
+print(paste('posteriorProbability_GED:',d_posteriorProbability_GED))
 ```
