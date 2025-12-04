@@ -57,7 +57,7 @@ likelihood_studentt <- function(input_dof, input_y){
   secondPart <- 1 / ((sampleVariance)^(n/2))
   thirdPart <- prod(sapply(1:n, function(j) {
     (1+((input_y[j] - sampleMean)^2 / 
-          (input_dof-2)*sampleVariance))^(-(input_dof+1)/2)
+          ((input_dof-2)*sampleVariance)))^(-(input_dof+1)/2)
     }))
   
   result <- firstPart * secondPart * thirdPart
