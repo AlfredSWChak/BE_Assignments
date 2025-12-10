@@ -148,7 +148,7 @@ posterior_density <- computeStudenttDensity(input_x = 0,
             input_c = ar2_estimation$coefficients['y_lag2', 'Std. Error'],
             input_DoF = ar2_gdp$df.residual)
 
-posteriorOddsRatio <- prior_density / posterior_density
+posteriorOddsRatio <- posterior_density / prior_density
 
 ar1_probability <- posteriorOddsRatio / (1+posteriorOddsRatio)
 ar2_probability <- 1 / (1+posteriorOddsRatio)
@@ -192,6 +192,13 @@ ar_simulation <- function(input_numberOfSimulations,
 
 ar1_numberOfSimulations <- ar1_probability * numberOfSimulations
 ar2_numberOfSimulations <- ar2_probability * numberOfSimulations
+
+SDDR_df <- data.frame(Model = c('AR(1)','AR(2)'),
+                      Density = c(prior_density,posterior_density),
+                      Probability = c(ar1_probability,ar2_probability),
+    numberOfSimulations = c(ar1_numberOfSimulations, ar2_numberOfSimulations),
+                      posteriorOddsRatio = posteriorOddsRatio)
+SDDR_df
 
 ar1_result <- ar_simulation(
   input_numberOfSimulations = ar1_numberOfSimulations,
